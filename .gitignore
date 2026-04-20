@@ -1,0 +1,62 @@
+# Data and uploads (user privacy)
+data/
+uploads/
+
+# Dependencies
+node_modules/
+web/node_modules/
+
+# Build artifacts (keep web/dist for deployment)
+*.exe
+!clipper.exe
+
+# Config with secrets (keep template)
+# config.yaml should be modified before commit
+
+# IDE and editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Database files (user data)
+*.db
+*.db-journal
+
+# Session secrets in config
+# Remove session_secret before committing config.yaml
+
+# Claude Code plans and memory (development only)
+.claude/
+memory/
+
+# Plans directory
+plans/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Lock files (optional, some prefer to include)
+# package-lock.json
+# pnpm-lock.yaml

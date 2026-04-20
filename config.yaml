@@ -1,0 +1,13 @@
+server:
+  http_port: 8080
+  session_secret: "change-this-in-production"  # MUST change before deployment
+
+database:
+  path: "./data/clipper.db"
+
+storage:
+  upload_dir: "./uploads"
+
+log:
+  level: "info"
+  format: "text"
