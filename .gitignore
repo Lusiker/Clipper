@@ -39,6 +39,11 @@ temp/
 .env.local
 .env.*.local
 
+# Cookie files (sensitive)
+cookies.txt
+cookies*.txt
+*_cookies.txt
+
 # Database files (user data)
 *.db
 *.db-journal
