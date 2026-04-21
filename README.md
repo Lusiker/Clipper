@@ -261,6 +261,7 @@ CREATE TABLE devices (
 7. **Clip卡片内容被裁剪** - 列表容器滚动, 卡片不压缩
 8. **预览弹窗白色底板** - 全局样式覆盖dialog背景为透明
 9. **浏览器无favicon** - 添加SVG图标到public/, 服务端提供路由
+10. **Session错误阻止登录** - 无效旧cookie时创建新session, 不再返回错误
 
 ## License
 
