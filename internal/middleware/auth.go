@@ -44,9 +44,9 @@ func AuthRequired() gin.HandlerFunc {
 func SetUserID(c *gin.Context, userID string) error {
 	session, err := store.Get(c.Request, SessionName)
 	if err != nil {
-		return err
+		// 旧cookie解码失败时创建新session
+		session = sessions.NewSession(store, SessionName)
 	}
-
 	session.Values["user_id"] = userID
 	return session.Save(c.Request, c.Writer)
 }
@@ -54,7 +54,8 @@ func SetUserID(c *gin.Context, userID string) error {
 func ClearSession(c *gin.Context) error {
 	session, err := store.Get(c.Request, SessionName)
 	if err != nil {
-		return err
+		// 无效cookie无需清除
+		return nil
 	}
 
 	session.Values["user_id"] = ""

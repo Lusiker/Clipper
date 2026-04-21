@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
@@ -27,6 +27,10 @@ const isUploading = ref(false)
 const previewVisible = ref(false)
 const previewUrl = ref('')
 
+// 粘贴图片预览
+const pastedImagePreview = ref<string | null>(null)
+const pastedImageFile = ref<File | null>(null)
+
 // 分页
 const currentPage = ref(1)
 const pageSize = ref(5)
@@ -46,6 +50,13 @@ onMounted(async () => {
 
   await clipStore.fetchClips()
   connect(deviceId.value, deviceName.value, handleWSMessage)
+
+  // 监听全局粘贴事件
+  window.addEventListener('paste', handlePaste)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('paste', handlePaste)
 })
 
 const paginatedClips = computed(() => {
@@ -82,21 +93,106 @@ function handleWSMessage(event: MessageEvent) {
   }
 }
 
+async function handlePaste(event: ClipboardEvent) {
+  const clipboardData = event.clipboardData
+  if (!clipboardData) return
+
+  // 检查是否有图片
+  const items = clipboardData.items
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile()
+      if (file) {
+        // 验证图片格式和大小
+        const validFormats = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+        if (!validFormats.includes(file.type)) {
+          ElMessage.warning('Unsupported image format. Supported: JPEG, PNG, GIF, WebP')
+          return
+        }
+        if (file.size > 20 * 1024 * 1024) {
+          ElMessage.warning('Image too large. Maximum size: 20MB')
+          return
+        }
+
+        // 切换到图片标签页并显示预览
+        newClipType.value = 'image'
+        newClipContent.value = ''
+        pastedImageFile.value = file
+        pastedImagePreview.value = URL.createObjectURL(file)
+        ElMessage.success('Image pasted from clipboard')
+        return
+      }
+    }
+  }
+
+  // 检查是否有文本
+  const text = clipboardData.getData('text')
+  if (text) {
+    // 切换到文本标签页并填充内容
+    newClipType.value = 'text'
+    newClipContent.value = text
+    clearPastedImage()
+    ElMessage.success('Text pasted from clipboard')
+    return
+  }
+
+  // 无匹配内容
+  ElMessage.warning('Clipboard content not supported (text or image only)')
+}
+
+function clearPastedImage() {
+  if (pastedImagePreview.value) {
+    URL.revokeObjectURL(pastedImagePreview.value)
+  }
+  pastedImagePreview.value = null
+  pastedImageFile.value = null
+}
+
+async function uploadPastedImage() {
+  if (!pastedImageFile.value) {
+    ElMessage.warning('No image to upload')
+    return
+  }
+
+  isUploading.value = true
+  uploadProgress.value = 0
+
+  try {
+    await clipStore.uploadImage(pastedImageFile.value, deviceId.value)
+    ElMessage.success('Image uploaded and synced')
+    clearPastedImage()
+  } catch (error: any) {
+    ElMessage.error(error)
+  } finally {
+    isUploading.value = false
+    uploadProgress.value = 0
+  }
+}
+
 async function createClip() {
-  if (!newClipContent.value) {
+  // 处理粘贴的图片
+  if (newClipType.value === 'image' && pastedImageFile.value) {
+    await uploadPastedImage()
+    return
+  }
+
+  // 处理文本
+  if (newClipType.value === 'text' && !newClipContent.value) {
     ElMessage.warning('Please enter content')
     return
   }
 
-  try {
-    await clipStore.createClip({
-      type: newClipType.value,
-      content: newClipContent.value
-    }, deviceId.value)
-    newClipContent.value = ''
-    ElMessage.success('Clip created and synced')
-  } catch (error: any) {
-    ElMessage.error(error)
+  if (newClipType.value === 'text') {
+    try {
+      await clipStore.createClip({
+        type: 'text',
+        content: newClipContent.value
+      }, deviceId.value)
+      newClipContent.value = ''
+      ElMessage.success('Clip created and synced')
+    } catch (error: any) {
+      ElMessage.error(error)
+    }
   }
 }
 
@@ -106,6 +202,10 @@ async function handleImageUpload(uploadFile: any) {
   }
 
   const file = uploadFile.raw as File
+
+  // 清除粘贴的图片预览
+  clearPastedImage()
+
   isUploading.value = true
   uploadProgress.value = 0
 
@@ -301,7 +401,7 @@ async function saveDeviceName() {
                 <div
                   class="segment-option"
                   :class="{ active: newClipType === 'text' }"
-                  @click="newClipType = 'text'"
+                  @click="newClipType = 'text'; clearPastedImage()"
                 >
                   <el-icon><DocumentCopy /></el-icon>
                   <span>Text</span>
@@ -309,7 +409,7 @@ async function saveDeviceName() {
                 <div
                   class="segment-option"
                   :class="{ active: newClipType === 'image' }"
-                  @click="newClipType = 'image'"
+                  @click="newClipType = 'image'; newClipContent = ''"
                 >
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                     <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
@@ -331,7 +431,19 @@ async function saveDeviceName() {
                   />
                 </div>
                 <div class="content-panel image-panel">
+                  <!-- 粘贴图片预览 -->
+                  <div v-if="pastedImagePreview" class="pasted-image-preview">
+                    <img :src="pastedImagePreview" alt="Pasted image" class="preview-thumb" />
+                    <div class="preview-actions">
+                      <el-button size="small" @click="clearPastedImage">
+                        <el-icon><Delete /></el-icon>
+                        Remove
+                      </el-button>
+                    </div>
+                  </div>
+                  <!-- 拖拽上传 -->
                   <el-upload
+                    v-else
                     class="image-upload"
                     drag
                     :auto-upload="false"
@@ -343,7 +455,7 @@ async function saveDeviceName() {
                     <div class="upload-area" v-if="!isUploading">
                       <el-icon size="48"><Picture /></el-icon>
                       <p>Drag image here or click to upload</p>
-                      <span class="upload-tip">Supports JPEG, PNG, GIF, WebP (max 20MB)</span>
+                      <span class="upload-tip">Press Ctrl+V to paste from clipboard</span>
                     </div>
                     <div class="upload-progress" v-else>
                       <el-progress type="circle" :percentage="uploadProgress" :width="80" />
@@ -359,7 +471,7 @@ async function saveDeviceName() {
               size="large"
               @click="createClip"
               class="create-btn"
-              :disabled="!newClipContent"
+              :disabled="newClipType === 'text' ? !newClipContent : !pastedImageFile"
             >
               <el-icon><Plus /></el-icon>
               Create & Sync
@@ -843,6 +955,31 @@ async function saveDeviceName() {
 
 .image-thumb:hover {
   transform: scale(1.02);
+}
+
+/* 粘贴图片预览样式 */
+.pasted-image-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: #f4f4f5;
+  border-radius: 8px;
+  border: 2px dashed #d9d9d9;
+}
+
+.pasted-image-preview .preview-thumb {
+  max-width: 100%;
+  max-height: 150px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.pasted-image-preview .preview-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
 }
 
 /* 图片预览弹窗样式 */

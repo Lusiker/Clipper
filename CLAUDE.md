@@ -71,6 +71,8 @@ Clipper/
 - [x] Image preview dialog (copy/download/close buttons)
 - [x] Clip card layout fix (no compression, list container scroll)
 - [x] Browser favicon (Clipper SVG icon)
+- [x] Global Ctrl+V paste detection (auto-detect text/image, auto-switch tab)
+- [x] Session error fix (invalid old cookie doesn't block login/logout)
 
 **Pending:**
 - [ ] Clip search/filter
@@ -130,6 +132,7 @@ go run ./cmd/server/main.go
 7. Clip card content truncated - List container scroll, cards not compressed
 8. Preview dialog white plate - Global style override with transparent dialog background
 9. No browser favicon - Added SVG favicon in public/, served via main.go
+10. Session error blocks login - Invalid old cookie now creates new session instead of returning error
 
 ## Database Schema
 
