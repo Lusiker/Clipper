@@ -26,7 +26,11 @@ export const useClipStore = defineStore('clip', () => {
       clips.value.unshift(newClip)
       return newClip
     } catch (error: any) {
-      throw error.response?.data?.error || 'Failed to create clip'
+      const status = error.response?.status
+      const serverMsg = error.response?.data?.error
+      const detail = serverMsg ? `${serverMsg} (${status})` : status ? `HTTP ${status}` : 'Network error'
+      console.error('[Clip] Create failed:', error)
+      throw detail || 'Failed to create clip'
     }
   }
 

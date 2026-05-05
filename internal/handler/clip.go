@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -36,6 +37,7 @@ func (h *ClipHandler) List(c *gin.Context) {
 
 	clips, err := h.clipService.List(userID, limit, offset)
 	if err != nil {
+		log.Printf("[ERROR] List clips (user=%s): %v", userID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -49,12 +51,14 @@ func (h *ClipHandler) Create(c *gin.Context) {
 
 	var req model.ClipCreate
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("[ERROR] Create clip bind JSON (user=%s, device=%s): %v", userID, deviceID, err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	clip, err := h.clipService.Create(userID, deviceID, &req)
 	if err != nil {
+		log.Printf("[ERROR] Create clip (user=%s, device=%s): %v", userID, deviceID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

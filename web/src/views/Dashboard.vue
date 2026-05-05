@@ -1417,7 +1417,7 @@ async function saveDeviceName() {
 
   .clip-actions :deep(.el-button) {
     flex: 1;
-    min-width: calc(50% - 4px);
+    min-width: 0;
     font-size: 12px;
     padding: 6px 12px;
   }
